@@ -1,0 +1,69 @@
+capstone:
+  name: Social Media Studio
+  type: backend-ai-engineering
+  description: >-
+    A reliable social media campaign publishing backend that ingests source
+    posts, generates platform-specific variants, validates constraints,
+    requires human approval, schedules approved variants, and publishes through
+    swappable social-platform adapters.
+
+stack:
+  language: Python
+  framework: FastAPI
+  database: SQLite
+  testing: pytest
+
+features:
+  - post ingestion and persistence
+  - platform-specific variant generation
+  - deterministic constraint validation
+  - human approval workflow
+  - swappable SocialPublisher adapters
+  - mock X publisher
+  - mock LinkedIn publisher
+  - real Telegram Bot API publisher
+  - durable SQLite-backed scheduling
+  - background worker with restart recovery
+  - idempotent publishing
+  - publish history and job inspection
+  - platform tone, length, and hashtag constraints
+
+platforms:
+  x:
+    adapter: mock
+  linkedin:
+    adapter: mock
+  telegram:
+    adapter: real
+
+reliability:
+  persistence: SQLite
+  idempotency_key: required_for_publish_jobs
+  scheduler: durable_sqlite_backed_worker
+  restart_recovery: true
+  duplicate_publish_protection: true
+
+workflow:
+  - ingest
+  - generate_variants
+  - validate
+  - human_review
+  - approve
+  - schedule
+  - publish
+  - record_history
+
+acceptance_probes:
+  - constraint_enforcement
+  - review_gate
+  - idempotent_publish
+  - durable_scheduling
+  - worker_restart_recovery
+  - adapter_swap
+
+submission:
+  readme: README.md
+  evidence: EVIDENCE.md
+  buildlog: BUILDLOG.md
+  environment_example: .env.example
+  tests: tests/
