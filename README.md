@@ -1,12 +1,12 @@
 # Social Media Studio
 
-A FastAPI backend for ingesting a post, generating platform-specific variants, reviewing them, scheduling approved variants, and publishing through swappable social-platform adapters. It also includes an optional LLM content-generation layer that produces structured variants before the existing deterministic validation and human-approval workflow.
+A FastAPI backend for ingesting posts, generating platform-specific variants, reviewing them, scheduling approved variants, and publishing through swappable social-platform adapters. It also includes an optional Gemini content-generation layer that produces structured variants before deterministic validation and human approval.
 
 ## What is implemented
 
 - Post ingestion with SQLite persistence
 - Deterministic X, LinkedIn, and Telegram variants
-- Optional structured LLM generation through `/ai/generate`
+- Optional structured Gemini generation through `/ai/generate`
 - LLM output grounded to the supplied source content
 - Pydantic validation of structured AI output
 - Platform constraint validation: length, hashtag count, and tone
@@ -15,7 +15,7 @@ A FastAPI backend for ingesting a post, generating platform-specific variants, r
 - Mock X and LinkedIn publishers
 - Real Telegram Bot API publisher
 - Durable SQLite-backed publish jobs
-- Background scheduler that survives API process restarts because scheduled jobs are persisted in SQLite
+- Background scheduler with persisted jobs
 - Idempotent publishing using a unique `idempotency_key`
 - Publish history and job inspection endpoints
 - AI token-usage and configurable cost estimation
@@ -28,27 +28,27 @@ Client / Postman
        v
     FastAPI
        |
-       +--> /ai/generate --> LLM --> structured variants
-       |                              |
-       |                              v
-       +------------------------> constraint validator
-                                      |
-                                      v
-                                human approval
-                                      |
-                                      v
+       +--> /ai/generate --> Gemini --> structured variants
+       |                            |
+       |                            v
+       +----------------------> constraint validator
+                                    |
+                                    v
+                              human approval
+                                    |
+                                    v
        +--> SQLite: posts / variants / publish_jobs / publish_history
-                                      |
-                                      v
-                               Scheduler Worker
-                                      |
-                                      v
-                                SocialPublisher
-                              /       |        \
-                         Mock X   Mock LinkedIn  Telegram
+                                    |
+                                    v
+                             Scheduler Worker
+                                    |
+                                    v
+                              SocialPublisher
+                            /       |        \
+                       Mock X   Mock LinkedIn  Telegram
 ```
 
-The LLM is deliberately optional. The existing deterministic generator and publishing pipeline remain available, so an AI-provider failure does not replace the capstone's core reliability path.
+The LLM is deliberately optional. The deterministic generator and publishing pipeline remain available, so an AI-provider failure does not replace the capstone's core reliability path.
 
 ## Run locally
 
@@ -70,16 +70,16 @@ Open Swagger at `http://127.0.0.1:8000/docs`.
 
 ## AI configuration
 
-Set the following values in `.env` if you want to use the optional LLM endpoint:
+Set the following values in `.env` to use Gemini:
 
 ```text
-OPENAI_API_KEY=...
-OPENAI_MODEL=...
-OPENAI_INPUT_COST_PER_MILLION=...
-OPENAI_OUTPUT_COST_PER_MILLION=...
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_INPUT_COST_PER_MILLION=0
+GEMINI_OUTPUT_COST_PER_MILLION=0
 ```
 
-The model name and pricing are intentionally configured by environment variables rather than hard-coded, so the project does not assume a particular provider price or model availability.
+The model and pricing are configured through environment variables rather than hard-coded values.
 
 ### AI endpoint
 
@@ -92,12 +92,30 @@ The model name and pricing are intentionally configured by environment variables
 }
 ```
 
-The response contains one structured variant for X, LinkedIn, and Telegram plus model/token/cost metadata. The generated text is validated against the same platform constraint engine used by the rest of the application.
+The response contains one structured variant for X, LinkedIn, and Telegram plus model/token/cost metadata. The generated text is passed through the same deterministic platform constraint engine used by the rest of the application.
+
+## AI evaluation
+
+Five representative source-content cases were generated with the real Gemini integration and then evaluated with the deterministic evaluator in `evaluation/evaluate_ai.py`.
+
+| Metric | Result |
+|---|---:|
+| Evaluation cases | 5 |
+| Cases passed | **5/5** |
+| Overall pass rate | **100%** |
+| Three variants per case | 5/5 |
+| All supported platforms present | 5/5 |
+| Structured fields valid | 5/5 |
+| Platform constraints valid | 5/5 |
+
+The evaluation intentionally reports deterministic structural and platform constraints rather than inventing an automated semantic-quality score. Writing quality, factual accuracy, and hallucination risk still require human review.
+
+Evaluation inputs are stored in `evaluation/eval_cases.json`; the evaluator is `evaluation/evaluate_ai.py`. Generated `evaluation/eval_results.json` is local evaluation output and is not required in the repository.
 
 ## Demo flow
 
 1. `POST /posts/ingest` with a title and content.
-2. Optionally call `POST /ai/generate` to create AI-assisted platform variants from the same source content.
+2. `POST /ai/generate` to create AI-assisted variants from the same source content.
 3. `GET /posts/{post_id}/variants` and select a variant.
 4. `PATCH /variants/{variant_id}/status?new_status=approved`.
 5. `POST /publish/schedule` with an idempotency key and a future `scheduled_at`.
@@ -109,11 +127,11 @@ For an immediate publish, omit `scheduled_at`.
 
 ## Idempotency and restart safety
 
-Every publish job has a unique idempotency key persisted in SQLite. The worker checks `publish_history` before calling an adapter, so a retry or process restart cannot intentionally create a second publish for the same key. Scheduled jobs remain in `publish_jobs` while the API process is down and are picked up after restart.
+Every publish job has a unique idempotency key persisted in SQLite. The worker checks `publish_history` before calling an adapter, so a retry or process restart cannot intentionally create a second publish for the same key. Scheduled jobs remain persisted while the API process is down and are picked up after restart.
 
 ## Telegram
 
-Set the values in `.env` before using the Telegram adapter:
+Set the following values in `.env` before using the Telegram adapter:
 
 ```text
 TELEGRAM_BOT_TOKEN=...
@@ -128,11 +146,12 @@ Mock adapters require no external credentials.
 pytest -q
 ```
 
-The test suite covers platform constraint/tone enforcement, review gating, idempotency, durable scheduling, worker processing, adapter contracts, and the AI generator contract without making a real LLM API call.
+The test suite covers platform constraint/tone enforcement, review gating, idempotency, durable scheduling, worker processing, adapter contracts, and the Gemini AI generator contract without making a real LLM API call.
 
 ## Known limitations
 
-- The scheduler is an in-process worker backed by durable SQLite state; for multi-instance production deployment, a shared database plus a distributed job-claim mechanism would be appropriate.
-- Telegram requires valid bot credentials and a reachable chat for a real external delivery.
+- The scheduler is an in-process worker backed by durable SQLite state; multi-instance production deployment would need a shared database plus distributed job claiming.
+- Telegram requires valid bot credentials and a reachable chat for real delivery.
 - X and LinkedIn are intentionally mock adapters for the capstone's adapter abstraction demonstration.
-- AI-generated variants are returned by `/ai/generate` but are not automatically published; human approval remains a separate explicit step.
+- AI-generated variants are not automatically published; human approval remains an explicit step.
+- Automated AI evaluation checks deterministic constraints; semantic quality and hallucination detection are not fully automated.
