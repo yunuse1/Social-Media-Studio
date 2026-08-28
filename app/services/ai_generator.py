@@ -42,20 +42,39 @@ def _schema() -> dict:
                 "items": {
                     "type": "object",
                     "properties": {
-                        "platform": {"type": "string", "enum": list(PLATFORMS)},
-                        "tone": {"type": "string", "enum": ["casual", "professional", "neutral"]},
-                        "content": {"type": "string"},
-                        "hashtags": {"type": "array", "items": {"type": "string"}},
+                        "platform": {
+                            "type": "string",
+                            "enum": list(PLATFORMS),
+                        },
+                        "tone": {
+                            "type": "string",
+                            "enum": [
+                                "casual",
+                                "professional",
+                                "neutral",
+                            ],
+                        },
+                        "content": {
+                            "type": "string",
+                        },
+                        "hashtags": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                            },
+                        },
                     },
-                    "required": ["platform", "tone", "content", "hashtags"],
-                    "additionalProperties": False,
+                    "required": [
+                        "platform",
+                        "tone",
+                        "content",
+                        "hashtags",
+                    ],
                 },
             }
         },
         "required": ["variants"],
-        "additionalProperties": False,
     }
-
 
 def _estimate_cost(input_tokens: int, output_tokens: int) -> float:
     """Estimate cost using prices configured for the selected Gemini model.

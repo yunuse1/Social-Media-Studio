@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List
@@ -12,6 +13,9 @@ from app.services.ai_generator import generate_ai_variants
 from app.services.generator import generate_platform_variants
 from app.services.scheduler import enqueue_publish, execute_publish, scheduler_worker
 from app.services.validator import ValidationError, validate_variant_constraints
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @asynccontextmanager
