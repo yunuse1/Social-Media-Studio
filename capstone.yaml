@@ -7,6 +7,11 @@ capstone:
     requires human approval, schedules approved variants, and publishes through
     swappable social-platform adapters.
 
+run: uvicorn app.main:app --reload
+seed: python -m app.seed
+test: pytest -q
+base_url: http://127.0.0.1:8000
+
 stack:
   language: Python
   framework: FastAPI
@@ -27,6 +32,7 @@ features:
   - idempotent publishing
   - publish history and job inspection
   - platform tone, length, and hashtag constraints
+  - optional Gemini AI generation
 
 platforms:
   x:
