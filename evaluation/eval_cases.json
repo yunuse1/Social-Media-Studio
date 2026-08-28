@@ -1,0 +1,27 @@
+[
+  {
+    "id": "backend-ai",
+    "title": "AI in Backend Engineering",
+    "content": "Artificial intelligence is changing how backend engineers build reliable and scalable systems. Teams can use AI-assisted tools to speed up routine development work while keeping review and testing in the engineering workflow."
+  },
+  {
+    "id": "product-launch",
+    "title": "New Developer Tool Release",
+    "content": "Our team released a developer tool that helps engineers inspect API responses and organize debugging notes in one workspace. The first version focuses on a simple workflow for local development and testing."
+  },
+  {
+    "id": "technical-update",
+    "title": "Database Reliability Update",
+    "content": "We improved database reliability by adding automated backups, clearer failure logging, and recovery checks. The changes are designed to make operational issues easier to detect and investigate."
+  },
+  {
+    "id": "engineering-practice",
+    "title": "Why Automated Tests Matter",
+    "content": "Automated tests give engineering teams a repeatable way to verify behavior after changes. A useful test suite should cover important success paths as well as validation and failure scenarios."
+  },
+  {
+    "id": "remote-collaboration",
+    "title": "Remote Engineering Collaboration",
+    "content": "Remote engineering teams benefit from clear written decisions, small pull requests, and predictable review practices. These habits reduce unnecessary coordination overhead and make technical work easier to follow."
+  }
+]
