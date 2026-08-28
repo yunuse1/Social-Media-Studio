@@ -47,11 +47,11 @@ result: published
 Telegram chat: message received
 ```
 
-![Telegram real delivery](screenshot/telegram_publish.png)
+![Telegram real delivery](screenshot/telegram_page.jpeg)
 
 ## Probe 5 — Retry / restart safety and idempotency
 
-The acceptance suite verifies that the same idempotency key can be submitted twice without creating a duplicate delivery. The first request succeeds and the second returns `already_processed`; publish history contains exactly one record for that key. fileciteturn45file0L2-L2
+The acceptance suite verifies that the same idempotency key can be submitted twice without creating a duplicate delivery. The first request succeeds and the second returns `already_processed`; publish history contains exactly one record for that key. fileciteturn45file0L2-L2
 
 It also verifies due-job processing by enqueueing a scheduled job, moving it to the due state, running the worker, and checking that the job becomes `completed`. fileciteturn45file0L2-L2
 
