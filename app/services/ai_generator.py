@@ -58,14 +58,14 @@ def _schema() -> dict:
 
 
 def _estimate_cost(input_tokens: int, output_tokens: int) -> float:
-    """Estimate cost using prices configured for the selected model.
+    """Estimate cost using prices configured for the selected Gemini model.
 
     Defaults are zero so the application never invents a provider price.
-    Set OPENAI_INPUT_COST_PER_MILLION and OPENAI_OUTPUT_COST_PER_MILLION
+    Set GEMINI_INPUT_COST_PER_MILLION and GEMINI_OUTPUT_COST_PER_MILLION
     to the current prices for the selected model when cost tracking is desired.
     """
-    input_price = float(os.getenv("OPENAI_INPUT_COST_PER_MILLION", "0"))
-    output_price = float(os.getenv("OPENAI_OUTPUT_COST_PER_MILLION", "0"))
+    input_price = float(os.getenv("GEMINI_INPUT_COST_PER_MILLION", "0"))
+    output_price = float(os.getenv("GEMINI_OUTPUT_COST_PER_MILLION", "0"))
     return round(
         (input_tokens / 1_000_000) * input_price
         + (output_tokens / 1_000_000) * output_price,
@@ -74,16 +74,17 @@ def _estimate_cost(input_tokens: int, output_tokens: int) -> float:
 
 
 def generate_ai_variants(title: str, content: str) -> AIGenerationResult:
-    api_key = os.getenv("OPENAI_API_KEY")
-    model = os.getenv("OPENAI_MODEL")
+    api_key = os.getenv("GEMINI_API_KEY")
+    model = os.getenv("GEMINI_MODEL")
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not configured")
+        raise RuntimeError("GEMINI_API_KEY is not configured")
     if not model:
-        raise RuntimeError("OPENAI_MODEL is not configured")
+        raise RuntimeError("GEMINI_MODEL is not configured")
 
-    from openai import OpenAI
+    from google import genai
+    from google.genai import types
 
-    client = OpenAI(api_key=api_key)
+    client = genai.Client(api_key=api_key)
     prompt = f"""Create exactly one social-media variant for each platform: x, linkedin, telegram.
 
 Source title:
@@ -102,20 +103,16 @@ Rules:
 - Hard limits: x <= 280 chars and <= 3 hashtags; linkedin <= 3000 chars and <= 10 hashtags; telegram <= 4096 chars and <= 15 hashtags.
 """
 
-    response = client.responses.create(
+    response = client.models.generate_content(
         model=model,
-        input=prompt,
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "social_media_variants",
-                "strict": True,
-                "schema": _schema(),
-            }
-        },
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=_schema(),
+        ),
     )
 
-    parsed = AIVariantResponse.model_validate(json.loads(response.output_text))
+    parsed = AIVariantResponse.model_validate_json(response.text)
     by_platform = {item.platform: item for item in parsed.variants}
     if set(by_platform) != set(PLATFORMS) or len(parsed.variants) != len(PLATFORMS):
         raise ValidationError("LLM must return exactly one variant for each supported platform")
@@ -123,9 +120,9 @@ Rules:
     for variant in parsed.variants:
         validate_variant_constraints(variant.platform, variant.content, variant.tone)
 
-    usage = response.usage
-    input_tokens = getattr(usage, "input_tokens", 0) if usage else 0
-    output_tokens = getattr(usage, "output_tokens", 0) if usage else 0
+    usage = getattr(response, "usage_metadata", None)
+    input_tokens = getattr(usage, "prompt_token_count", 0) if usage else 0
+    output_tokens = getattr(usage, "candidates_token_count", 0) if usage else 0
 
     return AIGenerationResult(
         variants=parsed.variants,
