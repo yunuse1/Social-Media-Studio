@@ -90,6 +90,16 @@ estimated_cost_usd: 0
 
 The zero cost is the value configured in the local cost-tracking environment variables, not a provider-pricing claim.
 
+### Swagger screenshots
+
+The final local Swagger/API acceptance screenshots are committed in the repository:
+
+- `test_page.png` — Swagger/API test page
+- `post_page1.png` — successful AI generation request/response
+- `post_page2.png` — successful AI generation response details
+
+These screenshots provide visual evidence for the manual `/ai/generate` acceptance run.
+
 ## Probe 7 — V2 AI evaluation
 
 Five representative cases were generated using the real Gemini integration and evaluated with `evaluation/evaluate_ai.py`.
@@ -178,7 +188,7 @@ evaluation/evaluate_ai.py
 - [x] Gemini-focused unit tests
 - [x] five-case AI evaluation
 - [x] reproducible acceptance evidence
-- [ ] Attach terminal/Swagger screenshots from a final local acceptance run
+- [x] Final Swagger/API screenshots committed
 
 ## Limitations
 
