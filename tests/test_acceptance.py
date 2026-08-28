@@ -7,21 +7,20 @@ from fastapi.testclient import TestClient
 from app import main
 from app.adapters import get_publisher
 from app.database import get_db, init_db
-from app.services.scheduler import process_due_jobs
+from app.services.scheduler import enqueue_publish, process_due_jobs
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     db_file = tmp_path / "acceptance.sqlite3"
     monkeypatch.setattr("app.database.DB_FILE", str(db_file))
-    monkeypatch.setattr("app.services.scheduler.get_db", lambda: __import__("app.database", fromlist=["get_db"]).get_db())
-    monkeypatch.setattr("app.database.get_db", lambda: __import__("sqlite3").connect(str(db_file)))
-    # Re-load the database connection with sqlite Row support for the app.
     import sqlite3
+
     def test_get_db():
         conn = sqlite3.connect(str(db_file))
         conn.row_factory = sqlite3.Row
         return conn
+
     monkeypatch.setattr("app.database.get_db", test_get_db)
     monkeypatch.setattr("app.services.scheduler.get_db", test_get_db)
     init_db()
@@ -99,16 +98,22 @@ def test_scheduling_persists_future_job(client):
 
 def test_due_job_is_processed_by_worker(client):
     variant_id = create_approved_variant(client)
-    scheduled_at = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
-    response = client.post(
-        "/publish/schedule",
-        json={
-            "variant_id": variant_id,
-            "scheduled_at": scheduled_at,
-            "idempotency_key": "worker-test-001",
-        },
+
+    # The API intentionally publishes immediately for past timestamps.
+    # To test the worker itself, enqueue a future job first, then move its
+    # persisted schedule into the past and let the worker claim it.
+    scheduled_at = datetime.now(timezone.utc) + timedelta(minutes=2)
+    result = enqueue_publish(variant_id, "worker-test-001", scheduled_at)
+    assert result["status"] == "scheduled"
+
+    conn = get_db()
+    conn.execute(
+        "UPDATE publish_jobs SET scheduled_at = ? WHERE idempotency_key = ?",
+        ((datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(), "worker-test-001"),
     )
-    assert response.status_code == 200
+    conn.commit()
+    conn.close()
+
     processed = asyncio.run(process_due_jobs())
     assert processed >= 1
     jobs = client.get("/publish/jobs").json()
