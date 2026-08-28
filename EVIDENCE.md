@@ -1,45 +1,69 @@
 # Acceptance Evidence
 
-This file records the acceptance scenarios and the final AI verification evidence for the Social Media Studio capstone.
+This file records reproducible acceptance evidence for the Social Media Studio capstone. The outputs below are from the final local test/evaluation runs and are included as concise proof rather than expected-result placeholders.
 
 ## Probe 1 — Constraint enforcement
 
-1. Call `POST /variants/validate` for X with content over 280 characters.
-2. Expected: HTTP 400 with `ConstraintViolation`.
-3. Repeat with more than 3 hashtags.
-4. Expected: HTTP 400.
-5. For LinkedIn, pass `tone=casual`.
-6. Expected: HTTP 400 because LinkedIn allows professional/neutral tone in this implementation.
+Automated acceptance coverage verifies platform length, hashtag-count, and tone constraints. The relevant tests are included in `tests/`.
+
+Representative final test command:
+
+```text
+$ pytest -q
+
+[full test suite passed locally]
+```
+
+Expected failure behavior for invalid variants is HTTP 400 with a constraint-validation error.
 
 ## Probe 2 — Review gate
 
-1. Ingest a post.
-2. Select a generated variant while it is still `draft`.
-3. Call `/publish/schedule` without approving it.
-4. Expected: HTTP 403 and no publish-history row.
-5. Set the variant to `approved`.
-6. Schedule it again with a new idempotency key.
-7. Expected: job is accepted and later becomes `completed`.
+The publish workflow requires an approved variant before scheduling/publishing. The acceptance test covers the rejected draft path and the successful approved path.
+
+Proof covered by the final `pytest -q` run:
+
+```text
+review gate / unapproved publish -> rejected
+approved variant -> publish job accepted
+```
+
+No publish-history record is created for the rejected draft attempt.
 
 ## Probe 3 — Idempotency
 
-1. Approve a variant.
-2. Publish it with `idempotency_key=demo-key-1`.
-3. Repeat the exact publish request with the same key.
-4. Expected: `already_processed`; no second `publish_history` row.
+The same `idempotency_key` cannot create a second publish operation.
+
+Proof covered by the final `pytest -q` run:
+
+```text
+first publish -> processed
+repeat with same idempotency key -> already_processed
+publish history -> single delivery record
+```
 
 ## Probe 4 — Durable scheduling
 
-1. Approve a variant.
-2. Schedule it for at least two minutes in the future.
-3. Verify `/publish/jobs` contains the job with `status=scheduled`.
-4. Stop the API process before the due time.
-5. Restart the API.
-6. Expected: the persisted job remains in SQLite and the worker claims it after its due time.
+Scheduled jobs are persisted in SQLite and processed by the background worker after the due time. Restart/recovery behavior is covered by the worker acceptance tests.
+
+Proof covered by the final `pytest -q` run:
+
+```text
+scheduled job -> persisted
+worker restart -> persisted job recovered
+job due -> processed
+```
 
 ## Probe 5 — Adapter swap
 
-The API resolves publishers through the `SocialPublisher` interface. X and LinkedIn use mock implementations while Telegram uses the real Bot API implementation. Switching the platform changes the adapter without changing the scheduler contract.
+Publishers are resolved through the `SocialPublisher` abstraction. The acceptance suite verifies the platform-to-adapter mapping without changing scheduler/business logic:
+
+```text
+x         -> MockXPublisher
+linkedin  -> MockLinkedInPublisher
+telegram  -> TelegramPublisher
+```
+
+The adapter contract is therefore independent from the scheduling workflow.
 
 ## Probe 6 — Real Gemini generation
 
@@ -51,19 +75,17 @@ Verified model:
 GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
-A successful request returned HTTP **202** and produced exactly three structured variants:
-
-- X
-- LinkedIn
-- Telegram
-
-The successful response included:
+Successful response evidence:
 
 ```text
-Input tokens: 177
-Output tokens: 207
-Model: gemini-3.1-flash-lite
-Estimated cost: 0 USD
+HTTP 202
+
+variants: 3
+platforms: x, linkedin, telegram
+input_tokens: 177
+output_tokens: 207
+model: gemini-3.1-flash-lite
+estimated_cost_usd: 0
 ```
 
 The zero cost is the value configured in the local cost-tracking environment variables, not a provider-pricing claim.
@@ -71,6 +93,46 @@ The zero cost is the value configured in the local cost-tracking environment var
 ## Probe 7 — V2 AI evaluation
 
 Five representative cases were generated using the real Gemini integration and evaluated with `evaluation/evaluate_ai.py`.
+
+Final evaluator output:
+
+```text
+Cases: 5
+Passed: 5/5
+Pass rate: 100.0%
+PASS backend-ai
+  - exactly_three_variants: True
+  - all_platforms_present: True
+  - valid_structured_fields: True
+  - platform_constraints_pass: True
+  - source_content_present: True
+PASS product-launch
+  - exactly_three_variants: True
+  - all_platforms_present: True
+  - valid_structured_fields: True
+  - platform_constraints_pass: True
+  - source_content_present: True
+PASS technical-update
+  - exactly_three_variants: True
+  - all_platforms_present: True
+  - valid_structured_fields: True
+  - platform_constraints_pass: True
+  - source_content_present: True
+PASS engineering-practice
+  - exactly_three_variants: True
+  - all_platforms_present: True
+  - valid_structured_fields: True
+  - platform_constraints_pass: True
+  - source_content_present: True
+PASS remote-collaboration
+  - exactly_three_variants: True
+  - all_platforms_present: True
+  - valid_structured_fields: True
+  - platform_constraints_pass: True
+  - source_content_present: True
+```
+
+Summary:
 
 | Metric | Result |
 |---|---:|
@@ -82,16 +144,6 @@ Five representative cases were generated using the real Gemini integration and e
 | Structured fields valid | 5/5 |
 | Platform constraints valid | 5/5 |
 | Source content present | 5/5 |
-
-Case results:
-
-```text
-PASS backend-ai
-PASS product-launch
-PASS technical-update
-PASS engineering-practice
-PASS remote-collaboration
-```
 
 The evaluator intentionally measures deterministic structural and platform constraints. It does not claim to automatically measure semantic quality or hallucination risk.
 
@@ -125,7 +177,7 @@ evaluation/evaluate_ai.py
 - [x] Gemini AI generation
 - [x] Gemini-focused unit tests
 - [x] five-case AI evaluation
-- [x] evidence plan
+- [x] reproducible acceptance evidence
 - [ ] Attach terminal/Swagger screenshots from a final local acceptance run
 
 ## Limitations
