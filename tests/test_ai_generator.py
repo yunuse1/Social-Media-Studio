@@ -6,12 +6,12 @@ from app.services.ai_generator import generate_ai_variants
 
 
 class FakeUsage:
-    input_tokens = 1000
-    output_tokens = 500
+    prompt_token_count = 1000
+    candidates_token_count = 500
 
 
 class FakeResponse:
-    output_text = json.dumps(
+    text = json.dumps(
         {
             "variants": [
                 {
@@ -35,23 +35,25 @@ class FakeResponse:
             ]
         }
     )
-    usage = FakeUsage()
+    usage_metadata = FakeUsage()
 
 
-class FakeResponses:
-    def create(self, **kwargs):
+class FakeModels:
+    def generate_content(self, **kwargs):
         return FakeResponse()
 
 
 class FakeClient:
     def __init__(self, **kwargs):
-        self.responses = FakeResponses()
+        self.models = FakeModels()
 
 
 def test_ai_generator_uses_structured_output_and_validates(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.setattr("openai.OpenAI", FakeClient, raising=False)
-    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_MODEL", "test-model")
+    monkeypatch.setattr("google.genai.Client", FakeClient)
+    monkeypatch.setenv("GEMINI_INPUT_COST_PER_MILLION", "1")
+    monkeypatch.setenv("GEMINI_OUTPUT_COST_PER_MILLION", "2")
 
     result = generate_ai_variants("AI Backend", "A source article about reliable backend engineering.")
 
@@ -63,6 +65,6 @@ def test_ai_generator_uses_structured_output_and_validates(monkeypatch):
 
 
 def test_ai_generator_requires_api_key(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
         generate_ai_variants("Title", "Content that is long enough.")
