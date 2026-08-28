@@ -53,7 +53,7 @@ worker restart -> persisted job recovered
 job due -> processed
 ```
 
-## Probe 5 — Adapter swap
+## Probe 5 — Adapter swap and real Telegram delivery
 
 Publishers are resolved through the `SocialPublisher` abstraction. The acceptance suite verifies the platform-to-adapter mapping without changing scheduler/business logic:
 
@@ -63,7 +63,23 @@ linkedin  -> MockLinkedInPublisher
 telegram  -> TelegramPublisher
 ```
 
-The adapter contract is therefore independent from the scheduling workflow.
+The real Telegram adapter was also verified end-to-end. A Telegram variant was approved and published with a fresh idempotency key. The API returned a successful publish result and the message was received in the configured Telegram bot chat.
+
+Example successful publish flow:
+
+```text
+variant_id: 12
+platform: telegram
+idempotency_key: telegram-final-test-001
+result: published
+Telegram chat: message received
+```
+
+### Telegram delivery screenshot
+
+![Telegram real delivery](screenshot/telegram_publish.png)
+
+This provides visual evidence that the real Telegram adapter can deliver a generated/approved variant outside the local mock publishers.
 
 ## Probe 6 — Real Gemini generation
 
@@ -197,6 +213,7 @@ evaluation/evaluate_ai.py
 - [x] five-case AI evaluation
 - [x] reproducible acceptance evidence
 - [x] Final Swagger/API screenshots committed
+- [x] Real Telegram delivery verified
 
 ## Limitations
 
