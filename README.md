@@ -68,6 +68,8 @@ uvicorn app.main:app --reload
 
 Open Swagger at `http://127.0.0.1:8000/docs`.
 
+For the grader manifest, the equivalent command is `uvicorn app.main:app --port 8000`; sample data can be created with `python -m app.seed`.
+
 ## AI configuration
 
 Set the following values in `.env` to use Gemini:
@@ -94,23 +96,28 @@ The model and pricing are configured through environment variables rather than h
 
 The response contains one structured variant for X, LinkedIn, and Telegram plus model/token/cost metadata. The generated text is passed through the same deterministic platform constraint engine used by the rest of the application.
 
-## AI evaluation
+## v2 Evaluation Results
 
-Five representative source-content cases were generated with the real Gemini integration and then evaluated with the deterministic evaluator in `evaluation/evaluate_ai.py`.
+Five representative source-content cases were generated with the real Gemini integration and evaluated with the deterministic evaluator in `evaluation/evaluate_ai.py`.
 
 | Metric | Result |
 |---|---:|
-| Evaluation cases | 5 |
+| Evaluation cases | **5** |
 | Cases passed | **5/5** |
 | Overall pass rate | **100%** |
 | Three variants per case | 5/5 |
 | All supported platforms present | 5/5 |
 | Structured fields valid | 5/5 |
 | Platform constraints valid | 5/5 |
+| Source content present | 5/5 |
 
 The evaluation intentionally reports deterministic structural and platform constraints rather than inventing an automated semantic-quality score. Writing quality, factual accuracy, and hallucination risk still require human review.
 
 Evaluation inputs are stored in `evaluation/eval_cases.json`; the evaluator is `evaluation/evaluate_ai.py`. Generated `evaluation/eval_results.json` is local evaluation output and is not required in the repository.
+
+## AI Transparency Disclosure
+
+Gemini was used for the optional platform-specific content generation step exposed by `/ai/generate`. The application logic around source ingestion, database persistence, Pydantic schemas, deterministic platform constraints, human approval, scheduling, worker processing, idempotency, publish history, and the `SocialPublisher` adapter contract was implemented as application logic rather than delegated to the model. AI output is treated as untrusted input: it is structured, validated against the source content, checked against platform constraints, and still requires human approval before publishing.
 
 ## Demo flow
 
@@ -148,7 +155,7 @@ pytest -q
 
 The test suite covers platform constraint/tone enforcement, review gating, idempotency, durable scheduling, worker processing, adapter contracts, and the Gemini AI generator contract without making a real LLM API call.
 
-## Known limitations
+## Known Limitations
 
 - The scheduler is an in-process worker backed by durable SQLite state; multi-instance production deployment would need a shared database plus distributed job claiming.
 - Telegram requires valid bot credentials and a reachable chat for real delivery.
