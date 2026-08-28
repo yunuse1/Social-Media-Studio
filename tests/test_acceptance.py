@@ -98,10 +98,6 @@ def test_scheduling_persists_future_job(client):
 
 def test_due_job_is_processed_by_worker(client):
     variant_id = create_approved_variant(client)
-
-    # The API intentionally publishes immediately for past timestamps.
-    # To test the worker itself, enqueue a future job first, then move its
-    # persisted schedule into the past and let the worker claim it.
     scheduled_at = datetime.now(timezone.utc) + timedelta(minutes=2)
     result = enqueue_publish(variant_id, "worker-test-001", scheduled_at)
     assert result["status"] == "scheduled"

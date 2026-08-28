@@ -2,6 +2,12 @@ import json
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from app.services.validator import ValidationError, validate_variant_constraints
 
 PLATFORMS = {"x", "linkedin", "telegram"}
