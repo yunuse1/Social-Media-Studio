@@ -5,8 +5,10 @@ from typing import List
 
 from fastapi import FastAPI, HTTPException, status
 
+from app.ai_models import AIGenerateRequest
 from app.database import get_db, init_db
 from app.models import PostIngestRequest, PostResponse, PublishHistoryResponse, ScheduleRequest, VariantResponse, VariantStatus
+from app.services.ai_generator import generate_ai_variants
 from app.services.generator import generate_platform_variants
 from app.services.scheduler import enqueue_publish, execute_publish, scheduler_worker
 from app.services.validator import ValidationError, validate_variant_constraints
@@ -28,8 +30,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Social Media Studio API",
-    description="Multi-platform campaign publishing with durable scheduling and idempotency guarantees.",
-    version="1.1.0",
+    description="Multi-platform campaign publishing with durable scheduling, idempotency, and optional AI-assisted content generation.",
+    version="1.2.0",
     lifespan=lifespan,
 )
 
@@ -52,6 +54,19 @@ def ingest_post(payload: PostIngestRequest):
     post = cursor.fetchone()
     conn.close()
     return dict(post)
+
+
+@app.post("/ai/generate", tags=["AI"])
+def generate_ai_content(payload: AIGenerateRequest):
+    try:
+        result = generate_ai_variants(payload.title, payload.content)
+        return result.model_dump()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail={"error": "AIConfigurationError", "message": str(exc)})
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail={"error": "AIOutputValidationError", "message": str(exc)})
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"error": "AIProviderError", "message": str(exc)})
 
 
 @app.post("/variants/validate", tags=["Variants"])
