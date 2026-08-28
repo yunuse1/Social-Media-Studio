@@ -92,11 +92,19 @@ The zero cost is the value configured in the local cost-tracking environment var
 
 ### Swagger screenshots
 
-The final local Swagger/API acceptance screenshots are committed in the repository:
+The final local Swagger/API acceptance screenshots are embedded below. They are also committed under `screenshot/` in the repository.
 
-- `screenshot/test_page.png` — Swagger/API test page
-- `screenshot/post_page1.png` — successful AI generation request/response
-- `screenshot/post_page2.png` — successful AI generation response details
+**Swagger test page**
+
+![Swagger test page](screenshot/test_page.png)
+
+**AI generation request and response — page 1**
+
+![AI generation page 1](screenshot/post_page1.png)
+
+**AI generation response details — page 2**
+
+![AI generation page 2](screenshot/post_page2.png)
 
 These screenshots provide visual evidence for the manual `/ai/generate` acceptance run.
 
