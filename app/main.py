@@ -1,5 +1,4 @@
 import asyncio
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import List
@@ -106,11 +105,12 @@ def update_variant_status(variant_id: int, new_status: VariantStatus):
 
 @app.post("/publish/schedule", tags=["Publishing"])
 async def schedule_or_publish(payload: ScheduleRequest):
-    scheduled_at = payload.scheduled_at or datetime.now(timezone.utc)
-    if scheduled_at.tzinfo is None:
-        scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
-
-    if scheduled_at > datetime.now(timezone.utc):
+    # Explicit scheduled_at means "create a durable job". Immediate publishing
+    # is available by omitting scheduled_at entirely.
+    if payload.scheduled_at is not None:
+        scheduled_at = payload.scheduled_at
+        if scheduled_at.tzinfo is None:
+            scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
         try:
             return enqueue_publish(payload.variant_id, payload.idempotency_key, scheduled_at)
         except Exception as exc:
